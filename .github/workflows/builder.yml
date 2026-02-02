@@ -5,33 +5,43 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build and commit static site
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
 
-      - name: Setup Node.js (for npm-based projects)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "npm"
 
-      - name: Run build
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+
+      - name: Export static files
+        run: npm run export
+
+      - name: Configure git
         run: |
-          # If this repo uses Node (package.json), run npm install and npm run build
-          if [ -f package.json ]; then
-            echo "Detected package.json → running npm ci && npm run build"
-            npm ci
-            npm run build
-            exit $?
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # If there's an executable build script in ./scripts, run it
-          if [ -x ./scripts/build.sh ]; then
-            echo "Detected ./scripts/build.sh → running it"
-            ./scripts/build.sh
-            exit $?
+      - name: Commit build output
+        run: |
+          git add out
+          if git diff --cached --quiet; then
+            echo "No build changes to commit"
+          else
+            git commit -m "chore: commit Next.js static build"
+            git push
           fi
-
-          echo "No recognized build command found (package.json or ./scripts/build.sh). Update the workflow to match your build steps." >&2
           exit 1
