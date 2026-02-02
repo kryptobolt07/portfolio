@@ -1,0 +1,37 @@
+name: Manual build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for npm-based projects)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Run build
+        run: |
+          # If this repo uses Node (package.json), run npm install and npm run build
+          if [ -f package.json ]; then
+            echo "Detected package.json → running npm ci && npm run build"
+            npm ci
+            npm run build
+            exit $?
+          fi
+
+          # If there's an executable build script in ./scripts, run it
+          if [ -x ./scripts/build.sh ]; then
+            echo "Detected ./scripts/build.sh → running it"
+            ./scripts/build.sh
+            exit $?
+          fi
+
+          echo "No recognized build command found (package.json or ./scripts/build.sh). Update the workflow to match your build steps." >&2
+          exit 1
